@@ -2,21 +2,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <signal.h>
 #include <string.h>
-#include <ctype.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <assert.h>
 #include <netdb.h>
 
 #define PORT "4950"
-#define STDIN 0
 
 struct sockaddr name;
 
@@ -27,18 +20,8 @@ void set_nonblock(int socket) {
     fcntl(socket, F_SETFL, flags | O_NONBLOCK);
 }
 
-
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa) {
-    if (sa->sa_family == AF_INET)
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
-
 int main(int agrc, char** argv) {
-    int status, sock, adrlen, new_sd;
+    int status, sock, new_sd;
 
     struct addrinfo hints;
     struct addrinfo *servinfo;  //will point to the results
