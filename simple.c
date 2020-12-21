@@ -8,10 +8,7 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include <netdb.h>
-
-#define PORT "4950"
-
-struct sockaddr name;
+#include <ctype.h>
 
 void set_nonblock(int socket) {
     int flags;
@@ -20,10 +17,37 @@ void set_nonblock(int socket) {
     fcntl(socket, F_SETFL, flags | O_NONBLOCK);
 }
 
-int main(int agrc, char** argv) {
+int main(int argc, char** argv) {
+
+    char listen_ip[39] = "0.0.0.0";
+    char port[5] = "4950";
+
+    for (int i = 0; i < argc; i++){
+        char* arg = argv[i];
+
+        if(arg[0] == '-'){
+            switch (tolower(arg[1]) ) {
+                case 'l':
+                    if(i+1 < argc){
+                        char arg_listen_addr[21];
+                        char delimiter[] = ":";
+                        strncpy(arg_listen_addr, argv[i+1], sizeof arg_listen_addr);
+
+                        strncpy(listen_ip, strtok(arg_listen_addr, delimiter), sizeof listen_ip);
+
+                        char* opt_port = strtok(NULL, delimiter);
+                        if(opt_port != NULL)
+                            strncpy(port, opt_port, sizeof port);
+                    }else {
+                        perror("Missing listen_address");
+                    }
+                    break;
+            }
+        }
+    }
+
     int status, sock, new_sd;
 
-    const char* listen_addr_str = "0.0.0.0";
 
     struct addrinfo hints;
     struct addrinfo *server_info;  //will point to the results
@@ -43,7 +67,7 @@ int main(int agrc, char** argv) {
     hints.ai_flags = AI_PASSIVE;     // Socket address is intended for `bind'
 
     //get server info, put into server_info
-    if ((status = getaddrinfo(listen_addr_str, PORT, &hints, &server_info)) != 0) {
+    if ((status = getaddrinfo(listen_ip, port, &hints, &server_info)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
@@ -63,13 +87,11 @@ int main(int agrc, char** argv) {
     }
 
     //unlink and bind
-    unlink(listen_addr_str);
+    unlink(listen_ip);
     if(bind (sock, server_info->ai_addr, server_info->ai_addrlen) < 0) {
         printf("\nBind error %m", errno);
         exit(1);
     }
-
-    freeaddrinfo(server_info);
 
     //listen
     if(listen(sock, 5) < 0) {
@@ -77,6 +99,16 @@ int main(int agrc, char** argv) {
         exit(1);
     }
     their_addr_size = sizeof(their_addr);
+
+    char hostname[39] = "";
+    char service[5] = "";
+    if((status = getnameinfo(server_info->ai_addr, server_info->ai_addrlen, hostname, sizeof hostname, service, sizeof service, NI_NUMERICHOST | NI_NUMERICSERV)) != 0){
+        fprintf(stderr, "getnameinfo error: %s\n", gai_strerror(status));
+    }else{
+        printf("Listening on IP: %s Port: %s \n", hostname, service);
+    }
+
+    freeaddrinfo(server_info);
 
     //accept
     new_sd = accept(sock, (struct sockaddr*)&their_addr, &their_addr_size);
