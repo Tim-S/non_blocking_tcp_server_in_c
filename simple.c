@@ -110,53 +110,55 @@ int main(int argc, char** argv) {
 
     freeaddrinfo(server_info);
 
-    //accept
-    new_sd = accept(sock, (struct sockaddr*)&their_addr, &their_addr_size);
-    if( new_sd < 0) {
-        printf("\nAccept error %m", errno);
-        exit(1);
-    }
 
-    set_nonblock(new_sd);
-    printf("\nSuccessful Connection!\n");
+    while (1){
+        printf("Waiting for Client...\n");
 
-    char buf_out[255];
-    memset(&buf_out, 0, sizeof(buf_out));
-    int numBytesSent;
+        //accept
+        new_sd = accept(sock, (struct sockaddr*)&their_addr, &their_addr_size);
+        if( new_sd < 0) {
+            printf("\nAccept error %m", errno);
+            exit(1);
+        }
 
-    while(1) {
-        FD_ZERO(&read_flags);
-        FD_ZERO(&write_flags);
-        FD_SET(new_sd, &read_flags);
-        FD_SET(new_sd, &write_flags);
+        set_nonblock(new_sd);
+        printf("\nSuccessful Connection!\n");
 
-        sel = select(new_sd+1, &read_flags, &write_flags, (fd_set*)0, &waitd);
+        char buf_out[255];
+        memset(&buf_out, 0, sizeof(buf_out));
+        int numBytesSent;
 
-        //if an error with select
-        if(sel < 0)
-            continue;
+        while(1) {
+            FD_ZERO(&read_flags);
+            FD_ZERO(&write_flags);
+            FD_SET(new_sd, &read_flags);
+            FD_SET(new_sd, &write_flags);
 
-        //socket ready for writing
-        if(FD_ISSET(new_sd, &write_flags)) {
-            FD_CLR(new_sd, &write_flags);
-            numBytesSent = send(new_sd, buf_out, strnlen(buf_out, sizeof(buf_out)), 0);
-            if(numBytesSent < 0){
-                printf("\nClosing socket");
-                close(new_sd);
-                break;
-            }
-            if(numBytesSent > 0)
-                printf("\nSent %d bytes", numBytesSent);
+            sel = select(new_sd+1, &read_flags, &write_flags, (fd_set*)0, &waitd);
 
-            memset(&buf_out, 0, sizeof(buf_out));
+            //if an error with select
+            if(sel < 0)
+                continue;
 
-            if(numBytesSent == 0){
-                usleep(100);
-                strncpy(buf_out ,"Hello World!\n", sizeof(buf_out));
+            //socket ready for writing
+            if(FD_ISSET(new_sd, &write_flags)) {
+                FD_CLR(new_sd, &write_flags);
+                numBytesSent = send(new_sd, buf_out, strnlen(buf_out, sizeof(buf_out)), 0);
+                if(numBytesSent < 0){
+                    printf("\nClosing socket\n");
+                    close(new_sd);
+                    break;
+                }
+                if(numBytesSent > 0)
+                    printf("\nSent %d bytes", numBytesSent);
+
+                memset(&buf_out, 0, sizeof(buf_out));
+
+                if(numBytesSent == 0){
+                    usleep(100);
+                    strncpy(buf_out ,"Hello World!\n", sizeof(buf_out));
+                }
             }
         }
     }
-
-    printf("\n\nExiting normally\n");
-    return 0;
 }
